@@ -26,13 +26,20 @@ import logging
 log = logging.getLogger(__name__)
 
 import os
-import six
 from optlang import interface
 from optlang.util import inheritdocstring, TemporaryFilename
 from optlang.expression_parsing import parse_optimization_expression
 from optlang import symbolics
 
 import gurobipy
+
+try:
+    version = gurobipy.gurobi.version()
+    if version[:2] < (9, 5):
+        raise RuntimeError()
+except Exception:
+    raise RuntimeError(
+        "This version of optlang requires a Gurobi version of 9.5 or above.")
 
 _GUROBI_STATUS_TO_STATUS = {
     gurobipy.GRB.LOADED: interface.LOADED,
@@ -60,9 +67,6 @@ _VTYPE_TO_GUROBI_VTYPE = {'continuous': gurobipy.GRB.CONTINUOUS, 'integer': guro
                           'binary': gurobipy.GRB.BINARY}
 _GUROBI_VTYPE_TO_VTYPE = dict((val, key) for key, val in _VTYPE_TO_GUROBI_VTYPE.items())
 
-# hacky way since Gurobi does not allow getting the version via the API
-_IS_GUROBI_9_OR_NEWER = hasattr(gurobipy, "MLinExpr")
-
 
 def _constraint_lb_and_ub_to_gurobi_sense_rhs_and_range_value(lb, ub):
     """Helper function used by Constraint and Model"""
@@ -89,20 +93,14 @@ def _constraint_lb_and_ub_to_gurobi_sense_rhs_and_range_value(lb, ub):
     return sense, rhs, range_value
 
 
-@six.add_metaclass(inheritdocstring)
-class Variable(interface.Variable):
+class Variable(interface.Variable, metaclass=inheritdocstring):
     def __init__(self, name, *args, **kwargs):
         super(Variable, self).__init__(name, **kwargs)
-        self._original_name = name
 
     @property
     def _internal_variable(self):
         if getattr(self, 'problem', None) is not None:
-            if _IS_GUROBI_9_OR_NEWER:
-                internal_variable = self.problem.problem.getVarByName(self.name)
-            else:
-                internal_variable = self.problem.problem.getVarByName(self._original_name)
-            return internal_variable
+            return self.problem.problem.getVarByName(self.name)
         else:
             return None
 
@@ -175,8 +173,7 @@ class Variable(interface.Variable):
             self.problem.problem.update()
 
 
-@six.add_metaclass(inheritdocstring)
-class Constraint(interface.Constraint):
+class Constraint(interface.Constraint, metaclass=inheritdocstring):
     _INDICATOR_CONSTRAINT_SUPPORT = False
 
     def __init__(self, expression, *args, **kwargs):
@@ -186,7 +183,7 @@ class Constraint(interface.Constraint):
         if self.problem is not None:
             self.problem.update()
             grb_constraint = self.problem.problem.getConstrByName(self.name)
-            for var, coeff in six.iteritems(coefficients):
+            for var, coeff in coefficients.items():
                 self.problem.problem.chgCoeff(grb_constraint, self.problem.problem.getVarByName(var.name), float(coeff))
             self.problem.update()
         else:
@@ -289,7 +286,7 @@ class Constraint(interface.Constraint):
                 updated_row = row - aux_var
                 self.problem.problem.remove(gurobi_constraint)
                 self.problem.problem.update()
-                self.problem.problem.addConstr(updated_row, sense, rhs, self.name)
+                self.problem.problem.addLConstr(updated_row, sense, rhs, self.name)
             aux_var.setAttr("UB", range_value)
         self.problem.update()
 
@@ -328,8 +325,7 @@ class Constraint(interface.Constraint):
         return self
 
 
-@six.add_metaclass(inheritdocstring)
-class Objective(interface.Objective):
+class Objective(interface.Objective, metaclass=inheritdocstring):
     def __init__(self, expression, sloppy=False, *args, **kwargs):
         super(Objective, self).__init__(expression, *args, sloppy=sloppy, **kwargs)
         self._expression_expired = False
@@ -397,8 +393,7 @@ class Objective(interface.Objective):
         return self._expression
 
 
-@six.add_metaclass(inheritdocstring)
-class Configuration(interface.MathematicalProgrammingConfiguration):
+class Configuration(interface.MathematicalProgrammingConfiguration, metaclass=inheritdocstring):
     def __init__(self, lp_method='primal', qp_method='primal', presolve=False,
                  verbosity=0, timeout=None, *args, **kwargs):
         super(Configuration, self).__init__(*args, **kwargs)
@@ -408,7 +403,7 @@ class Configuration(interface.MathematicalProgrammingConfiguration):
         self.presolve = presolve
         self.timeout = timeout
         if "tolerances" in kwargs:
-            for key, val in six.iteritems(kwargs["tolerances"]):
+            for key, val in kwargs["tolerances"].items():
                 try:
                     setattr(self.tolerances, key, val)
                 except AttributeError:
@@ -492,10 +487,10 @@ class Configuration(interface.MathematicalProgrammingConfiguration):
         }
 
     def __setstate__(self, state):
-        for key, val in six.iteritems(state):
+        for key, val in state.items():
             if key != "tolerances":
                 setattr(self, key, val)
-        for key, val in six.iteritems(state["tolerances"]):
+        for key, val in state["tolerances"].items():
             if key in self._tolerance_functions():
                 setattr(self.tolerances, key, val)
 
@@ -652,7 +647,7 @@ class Model(interface.Model):
         for key, coef in quadratic_coefficients.items():
             coef = float(coef)
             if len(key) == 1:
-                var = six.next(iter(key))
+                var = next(iter(key))
                 var = self.problem.getVarByName(var.name)
                 grb_terms.append(coef * var * var)
             else:
@@ -725,7 +720,7 @@ class Model(interface.Model):
                     self.problem.update()
                     lhs = lhs - aux_var
 
-                self.problem.addConstr(lhs, sense, rhs, name=constraint.name)
+                self.problem.addLConstr(lhs, sense, rhs, name=constraint.name)
             else:
                 raise ValueError(
                     "GUROBI currently only supports linear constraints. %s is not linear." % self)
@@ -740,10 +735,72 @@ class Model(interface.Model):
         for internal_constraint in internal_constraints:
             self.problem.remove(internal_constraint)
 
+    def _get_variables_names(self):
+        """The names of model variables.
+
+        Returns
+        -------
+        list
+        """
+        return self.problem.VarName
+
+    def _get_constraint_names(self):
+        """The names of model constraints.
+
+        Returns
+        -------
+        list
+        """
+        return self.problem.ConstrName
+
+    def _get_primal_values(self):
+        """The primal values of model variables.
+
+        Returns
+        -------
+        list
+        """
+        return self.problem.X
+
+    def _get_reduced_costs(self):
+        """The reduced costs/dual values of all variables.
+
+        Returns
+        -------
+        list
+        """
+        if self.is_integer:
+            raise ValueError(
+                "Reduced costs are not well defined for integer problems.")
+        if self.is_mip:
+            raise ValueError(
+                "Reduced costs are not well defined for mixed integer problems. Try relaxing your model first.")
+        return self.problem.RC
+
+    def _get_shadow_prices(self):
+        """The shadow prices of model (dual values of all constraints).
+
+        Returns
+        -------
+        collections.OrderedDict
+        """
+        if self.is_integer:
+            raise ValueError(
+                "Shadow prices are not well defined for integer problems.")
+        if self.is_mip:
+            raise ValueError(
+                "Shadow prices are not well defined for mixed integer problems. Try relaxing your model first.")
+        return self.problem.Pi
+
     @property
     def is_integer(self):
         self.problem.update()
         return self.problem.NumIntVars > 0
+
+    @property
+    def is_mip(self):
+        self.problem.update()
+        return self.problem.IsMIP == 1
 
 
 if __name__ == '__main__':

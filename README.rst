@@ -38,7 +38,6 @@ Dependencies
 The following dependencies are needed.
 
 -  `sympy >= 1.0.0 <http://sympy.org/en/index.html>`__
--  `six >= 1.9.0 <https://pypi.python.org/pypi/six>`__
 -  `swiglpk >= 1.4.3 <https://pypi.python.org/pypi/swiglpk>`__
 
 The following are optional dependencies that allow other solvers to be used.
@@ -58,7 +57,6 @@ from `GLPK documentation <http://www.gnu.org/software/glpk>`__):
 
 .. code-block:: python
 
-    from __future__ import print_function
     from optlang import Model, Variable, Constraint, Objective
 
     # All the (symbolic) variables are declared, with a name and optionally a lower and/or upper bound.
@@ -152,8 +150,8 @@ Future outlook
 .. |Code of Conduct| image:: https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg
    :target: .github/CODE_OF_CONDUCT.md
    :alt: Code of Conduct
-.. |GitHub Actions| image:: https://github.com/opencobra/optlang/workflows/CI-CD/badge.svg
-   :target: https://github.com/opencobra/optlang/workflows/CI-CD
+.. |GitHub Actions| image:: https://github.com/opencobra/optlang/actions/workflows/main.yml/badge.svg
+   :target: https://github.com/opencobra/optlang/actions/workflows/main.yml
    :alt: GitHub Actions
 .. |Coverage Status| image:: https://codecov.io/gh/opencobra/optlang/branch/master/graph/badge.svg
    :target: https://codecov.io/gh/opencobra/optlang

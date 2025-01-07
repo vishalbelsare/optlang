@@ -13,21 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import division
-
 import abc
-import unittest
-
-import six
-from optlang import interface
-from optlang import symbolics
-import optlang
-import pickle
-import json
 import copy
+import json
 import os
-import sympy
+import pickle
+import unittest
 from functools import partial
+
+import sympy
+
+import optlang
+from optlang import interface, symbolics
+
 
 __test__ = False
 
@@ -35,8 +33,7 @@ TESTMODELPATH = os.path.join(os.path.dirname(__file__), 'data/model.json')
 TESTMILPMODELPATH = os.path.join(os.path.dirname(__file__), 'data/simple_milp.json')
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractVariableTestCase(unittest.TestCase):
+class AbstractVariableTestCase(unittest.TestCase, metaclass=abc.ABCMeta):
     @unittest.skip('Abstract test method not implemented.')
     def test_magic(self):
         pass
@@ -178,8 +175,7 @@ class AbstractVariableTestCase(unittest.TestCase):
         self.assertEqual(self.var.name, 'test')
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractConstraintTestCase(unittest.TestCase):
+class AbstractConstraintTestCase(unittest.TestCase, metaclass=abc.ABCMeta):
 
     def setUp(self):
         with open(TESTMODELPATH) as infile:
@@ -364,8 +360,7 @@ class AbstractConstraintTestCase(unittest.TestCase):
         self.assertTrue(const.get_linear_coefficients([x, y, z, w]) == {x: 1, y: 1, z: 1, w: 0})
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractObjectiveTestCase(unittest.TestCase):
+class AbstractObjectiveTestCase(unittest.TestCase, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def setUp(self):
         pass
@@ -415,8 +410,7 @@ class AbstractObjectiveTestCase(unittest.TestCase):
         self.assertTrue(obj.get_linear_coefficients([x, y, z, w]) == {x: 1, y: 1, z: 1, w: 0})
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractModelTestCase(unittest.TestCase):
+class AbstractModelTestCase(unittest.TestCase, metaclass=abc.ABCMeta):
 
     def setUp(self):
         with open(TESTMODELPATH) as infile:
@@ -829,7 +823,11 @@ class AbstractModelTestCase(unittest.TestCase):
         objective = self.model.objective
         self.model.objective = self.interface.Objective(objective.expression + 3)
         self.model.update()
-        self.assertEqual((self.model.objective.expression - (objective.expression + 3.)).expand(), 0.)
+        self.assertEqual(
+            float((self.model.objective.expression -
+                  (objective.expression + 3.)).expand().evalf()),
+            0.
+        )
 
     def test_is_integer(self):
         model = self.model
@@ -975,8 +973,7 @@ class AbstractModelTestCase(unittest.TestCase):
         self.assertEqual(const.name, old_name)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractConfigurationTestCase(unittest.TestCase):
+class AbstractConfigurationTestCase(unittest.TestCase, metaclass=abc.ABCMeta):
 
     def setUp(self):
         pass
@@ -993,8 +990,7 @@ class AbstractConfigurationTestCase(unittest.TestCase):
             )
 
 
-@six.add_metaclass(abc.ABCMeta)
-class AbstractQuadraticProgrammingTestCase(unittest.TestCase):
+class AbstractQuadraticProgrammingTestCase(unittest.TestCase, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def setUp(self):
         pass

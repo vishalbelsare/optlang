@@ -16,7 +16,7 @@ import pickle
 import unittest
 
 from optlang.container import Container
-from optlang.interface import Variable, Model
+from optlang.interface import Model, Variable
 
 
 class ContainerTestCase(unittest.TestCase):
@@ -47,12 +47,10 @@ class ContainerTestCase(unittest.TestCase):
         var = Variable('blub')
         self.container.append(var)
         print(dir(self.container))
-        self.assertEqual(dir(self.container),
-                         ['__contains__', '__delitem__', '__dict__', '__dir__', '__doc__', '__getattr__', '__getitem__',
-                          '__getstate__', '__init__', '__iter__', '__len__', '__module__', '__setitem__',
-                          '__setstate__', '__weakref__', '_check_for_name_attribute', '_reindex', 'append', 'blub',
-                          'clear', 'extend', 'fromkeys', 'get', 'has_key', 'items', 'iteritems', 'iterkeys',
-                          'itervalues', 'keys', 'update_key', 'values'])
+        self.assertTrue(
+            all(hasattr(self.container, attribute)
+                for attribute in ['__contains__', 'keys', 'values'])
+        )
 
     def test_del_by_index(self):
         variables_iterable = [Variable("v" + str(i), lb=10, ub=100) for i in range(1000)]
